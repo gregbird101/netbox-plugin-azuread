@@ -1,6 +1,7 @@
 from pprint import pformat
 import logging
 import os
+import sys
 
 from django.contrib.auth import login as auth_login, get_user_model
 from django.contrib.auth.base_user import BaseUserManager
@@ -16,6 +17,12 @@ LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
 logging.basicConfig(level=LOGLEVEL)
 LOGGER = logging.getLogger("netbox_plugin_azuread")
 
+logFormatter = logging.Formatter\
+("%(name)-12s %(asctime)s %(levelname)-8s %(filename)s:%(funcName)s %(message)s")
+consoleHandler = logging.StreamHandler(sys.stdout) #set streamhandler to stdout
+consoleHandler.setFormatter(logFormatter)
+# ADD TO LOGGER
+LOGGER.addHandler(consoleHandler)
 
 class AzureADRemoteUserBackend(RemoteUserBackend):
 
