@@ -1,55 +1,35 @@
-# netbox-plugin-azuread
+# netbox-plugin-azuread - Forked
 
-> This plugin is not actively maintained for two reasons:
-> 1) Netbox has since added [official support for Azure AD SSO](https://docs.netbox.dev/en/stable/administration/authentication/microsoft-azure-ad/) by way of the Django Social Auth library.
-> 2) I don't use Netbox anymore. My previous employer used it but I no longer work there.
->
-> You're still welcome to use it, fork it etc but I won't be personally providing any support going forward.
->
-> I prefer to archive this repo and craft a clear notice rather than give the illusion of free support if you're evaluating this plugin.
+This repo is a forked repo of Marcus's great work with [netbox-plugin-azuread](https://github.com/marcus-crane/netbox-plugin-azuread)
+
+I have taken the fix from from [cpajr](https://github.com/marcus-crane/netbox-plugin-azuread/issues/23) and applied it to this repo.
+
+This was because many of our Azure AD users have 100+ groups assigned. The fix has been tested and working.
+
+## What is netbox-plugin-azuread
 
 A plugin for the [IPAM](https://docs.microsoft.com/en-us/windows-server/networking/technologies/ipam/ipam-top) tool [Netbox](github.com/netbox-community/netbox) to support OAuth2 authentication via [Azure Active Directory](https://azure.microsoft.com/en-us/services/active-directory/).
 
 `netbox-plugin-azuread` is effectively a light wrapper around Microsoft's own [`msal`](https://github.com/AzureAD/microsoft-authentication-library-for-python) library with the added ability to map AzureAD groups to Django permissions.
 
-## Installation
+## Installation with Kubernetes
 
 Before installing any plugins, it's worth familiarising yourself with the [Netbox documentation](https://netbox.readthedocs.io/en/stable/).
 
-Regardless of environment, it's always a good idea to pin your dependencies. I haven't done it explicitly in this README but I recommend doing it for your own deployments eg; `pip install msal==1.2.3 netbox_plugin_azuread==1.0.0`.
+How to get his plugin working with Kubernetes - High Level Overview:
 
-### Bare metal
-
-If you're using a non-containerised deployment of Netbox, you'll want to first activate the virtual environment as [referenced in the Netbox setup process](https://netbox.readthedocs.io/en/stable/installation/3-netbox/#run-the-upgrade-script).
-
-```shell
-cd /opt/netbox
-source venv/bin/activate
-```
-
-Once activated, you'll be able to use pip install `netbox-plugin-azuread` by way of its hosted [PyPI](https://pypi.org/) distribution. We'll also be installing `msal` as a dependency. Once done, you'll need to restart Netbox to see your changes.
-
-```shell
-pip install msal netbox_plugin_azuread
-systemctl restart netbox
-```
-
-If you prefer to install this package manually, both a `.tar.gz` and `.whl` distribution are available under under the [releases](https://github.com/marcus-crane/netbox-plugin-azuread/releases) section of this Github repository.
-
-Once installed, don't forget to add these changes to your `requirements.txt` or better yet, store them in their own distinct requirements file from the Netbox base requirements.
-
-### Containerisation
-
-If you're looking to use this plugin in conjunction with your own dockerised version of Netbox, or one of the available [netbox-docker](https://github.com/netbox-community/netbox-docker) images, it's a little bit more involved.
-
-At work, we run this plugin within a build of Netbox deployed via Kubernetes but the steps are the same for any Docker deployment.
+- Build this repository with the setup.py creating a .whl file in a repository
+- Build the container with the below docker file picking up the module from the repository
+- Include the following plugins config in your netbox plugin helmchart
 
 Here's the simplest possible Dockerfile you could write:
+```
+FROM netboxcommunity/netbox:v3.2.8
 
-```dockerfile
-FROM netboxcommunity/netbox:v2.11.12
+RUN /opt/netbox/venv/bin/pip install msal
 
-RUN /opt/netbox/venv/bin/pip install netbox_plugin_azuread msal
+# Example url with -i 
+RUN /opt/netbox/venv/bin/pip install -i http://user:password@localrepository.domain/artifactory/api/pypi/py-it/simple netbox_plugin_azuread==1.2.3 --trusted-host localrepository.domain
 ```
 
 As above, `msal` is a dependency of this plugin so we need to install it as well. Despite this container being extremely small, the rest of the `netbox-docker` build scripts will implicitly execute as we haven't overridden the entrypoint or any other commands.

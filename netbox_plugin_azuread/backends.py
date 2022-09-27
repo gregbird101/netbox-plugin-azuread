@@ -1,6 +1,7 @@
 from pprint import pformat
 import logging
 import os
+import sys
 
 from django.contrib.auth import login as auth_login, get_user_model
 from django.contrib.auth.base_user import BaseUserManager
@@ -16,6 +17,12 @@ LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
 logging.basicConfig(level=LOGLEVEL)
 LOGGER = logging.getLogger("netbox_plugin_azuread")
 
+logFormatter = logging.Formatter\
+("%(name)-12s %(asctime)s %(levelname)-8s %(filename)s:%(funcName)s %(message)s")
+consoleHandler = logging.StreamHandler(sys.stdout) #set streamhandler to stdout
+consoleHandler.setFormatter(logFormatter)
+# ADD TO LOGGER
+LOGGER.addHandler(consoleHandler)
 
 class AzureADRemoteUserBackend(RemoteUserBackend):
 
@@ -78,14 +85,23 @@ class AzureADRemoteUserBackend(RemoteUserBackend):
 
     def _retrieve_user_groups(self, user_id, access_token):
         LOGGER.debug(f"Attempting to retrieve groups for user with id {user_id}")
+        return_values = []
         groups_url = f'https://graph.microsoft.com/v1.0/users/{user_id}/memberOf?$select=displayName,id'
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
         }
         r = requests.get(groups_url, headers=headers)
-        LOGGER.debug(f"Retrieved groups for {user_id} from MS Graph: {pformat(r.json())}")
-        return r.json().get('value', [])
+        return_values.extend(r.json().get('value', []))
+        nextLink = r.json().get('@odata.nextLink','')
+
+        while (nextLink != ''):
+            r = requests.get(nextLink,headers=headers)
+            return_values.extend(r.json().get('value', []))
+            nextLink = r.json().get('@odata.nextLink','')
+
+        LOGGER.debug(f"Retrieved groups for {user_id} from MS Graph: {pformat(return_values)}")
+        return return_values
 
     def _configure_access_groups(self, user, access_token):
         user_profile = self._get_user_profile(user.username, access_token)
